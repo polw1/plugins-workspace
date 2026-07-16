@@ -222,6 +222,8 @@ pub struct MessageDialogBuilder<R: Runtime> {
     pub(crate) buttons: MessageDialogButtons,
     #[cfg(desktop)]
     pub(crate) parent: Option<crate::desktop::WindowHandle>,
+    #[cfg(target_os = "ios")]
+    pub(crate) parent: Option<String>,
 }
 
 /// Payload for the message dialog mobile API.
@@ -235,6 +237,8 @@ pub(crate) struct MessageDialogPayload<'a> {
     ok_button_label: Option<&'a str>,
     no_button_label: Option<&'a str>,
     cancel_button_label: Option<&'a str>,
+    #[cfg(target_os = "ios")]
+    parent: Option<&'a str>,
 }
 
 // raw window handle :(
@@ -250,6 +254,8 @@ impl<R: Runtime> MessageDialogBuilder<R> {
             kind: MessageDialogKind::default(),
             buttons: MessageDialogButtons::default(),
             #[cfg(desktop)]
+            parent: None,
+            #[cfg(target_os = "ios")]
             parent: None,
         }
     }
@@ -276,6 +282,8 @@ impl<R: Runtime> MessageDialogBuilder<R> {
             ok_button_label,
             no_button_label,
             cancel_button_label,
+            #[cfg(target_os = "ios")]
+            parent: self.parent.as_deref(),
         }
     }
 
@@ -286,11 +294,12 @@ impl<R: Runtime> MessageDialogBuilder<R> {
     }
 
     /// Set parent windows explicitly (optional)
-    #[cfg(desktop)]
+    #[cfg(any(desktop, target_os = "ios"))]
     pub fn parent<W: raw_window_handle::HasWindowHandle + raw_window_handle::HasDisplayHandle>(
         mut self,
         parent: &W,
     ) -> Self {
+        #[cfg(desktop)]
         if let (Ok(window_handle), Ok(display_handle)) =
             (parent.window_handle(), parent.display_handle())
         {
@@ -298,6 +307,14 @@ impl<R: Runtime> MessageDialogBuilder<R> {
                 window_handle.as_raw(),
                 display_handle.as_raw(),
             ));
+        }
+        #[cfg(target_os = "ios")]
+        if let Ok(window_handle) = parent.window_handle() {
+            if let raw_window_handle::RawWindowHandle::UiKit(handle) = window_handle.as_raw() {
+                self.parent = handle
+                    .ui_view_controller
+                    .map(|view_controller| (view_controller.as_ptr() as usize).to_string());
+            }
         }
         self
     }
@@ -390,6 +407,8 @@ pub struct FileDialogBuilder<R: Runtime> {
     pub(crate) file_access_mode: Option<FileAccessMode>,
     #[cfg(desktop)]
     pub(crate) parent: Option<crate::desktop::WindowHandle>,
+    #[cfg(target_os = "ios")]
+    pub(crate) parent: Option<String>,
 }
 
 #[cfg(mobile)]
@@ -401,6 +420,8 @@ pub(crate) struct FileDialogPayload<'a> {
     multiple: bool,
     picker_mode: &'a Option<PickerMode>,
     file_access_mode: &'a Option<FileAccessMode>,
+    #[cfg(target_os = "ios")]
+    parent: Option<&'a str>,
 }
 
 // raw window handle :(
@@ -420,6 +441,8 @@ impl<R: Runtime> FileDialogBuilder<R> {
             file_access_mode: None,
             #[cfg(desktop)]
             parent: None,
+            #[cfg(target_os = "ios")]
+            parent: None,
         }
     }
 
@@ -431,6 +454,8 @@ impl<R: Runtime> FileDialogBuilder<R> {
             multiple,
             picker_mode: &self.picker_mode,
             file_access_mode: &self.file_access_mode,
+            #[cfg(target_os = "ios")]
+            parent: self.parent.as_deref(),
         }
     }
 
@@ -459,7 +484,7 @@ impl<R: Runtime> FileDialogBuilder<R> {
     }
 
     /// Sets the parent window of the dialog.
-    #[cfg(desktop)]
+    #[cfg(any(desktop, target_os = "ios"))]
     #[must_use]
     pub fn set_parent<
         W: raw_window_handle::HasWindowHandle + raw_window_handle::HasDisplayHandle,
@@ -467,6 +492,7 @@ impl<R: Runtime> FileDialogBuilder<R> {
         mut self,
         parent: &W,
     ) -> Self {
+        #[cfg(desktop)]
         if let (Ok(window_handle), Ok(display_handle)) =
             (parent.window_handle(), parent.display_handle())
         {
@@ -474,6 +500,14 @@ impl<R: Runtime> FileDialogBuilder<R> {
                 window_handle.as_raw(),
                 display_handle.as_raw(),
             ));
+        }
+        #[cfg(target_os = "ios")]
+        if let Ok(window_handle) = parent.window_handle() {
+            if let raw_window_handle::RawWindowHandle::UiKit(handle) = window_handle.as_raw() {
+                self.parent = handle
+                    .ui_view_controller
+                    .map(|view_controller| (view_controller.as_ptr() as usize).to_string());
+            }
         }
         self
     }

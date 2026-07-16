@@ -40,6 +40,7 @@ url = { workspace = true }
 tauri-plugin-fs = { path = "../fs", version = "2.5.1" }
 
 [target.'cfg(target_os = "ios")'.dependencies]
+raw-window-handle = "0.6"
 tauri = { workspace = true, features = ["wry"] }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

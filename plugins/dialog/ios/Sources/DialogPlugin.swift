@@ -23,6 +23,7 @@ struct MessageDialogOptions: Decodable {
   var okButtonLabel: String?
   var noButtonLabel: String?
   var cancelButtonLabel: String?
+  var parent: String?
 }
 
 struct Filter: Decodable {
@@ -35,11 +36,13 @@ struct FilePickerOptions: Decodable {
   var defaultPath: String?
   var pickerMode: PickerMode?
   var fileAccessMode: FileAccessMode?
+  var parent: String?
 }
 
 struct SaveFileDialogOptions: Decodable {
   var fileName: String?
   var defaultPath: String?
+  var parent: String?
 }
 
 enum FileAccessMode: String, Decodable {
@@ -110,7 +113,7 @@ class DialogPlugin: Plugin {
           let picker = PHPickerViewController(configuration: configuration)
           picker.delegate = self.filePickerController
           picker.modalPresentationStyle = .fullScreen
-          self.presentViewController(picker)
+          self.presentViewController(picker, parent: args.parent)
         }
       } else {
         DispatchQueue.main.async {
@@ -127,7 +130,7 @@ class DialogPlugin: Plugin {
           picker.delegate = self.filePickerController
           picker.allowsMultipleSelection = args.multiple ?? false
           picker.modalPresentationStyle = .fullScreen
-          self.presentViewController(picker)
+          self.presentViewController(picker, parent: args.parent)
         }
       }
     } else {
@@ -171,12 +174,20 @@ class DialogPlugin: Plugin {
       }
       picker.delegate = self.filePickerController
       picker.modalPresentationStyle = .fullScreen
-      self.presentViewController(picker)
+      self.presentViewController(picker, parent: args.parent)
     }
   }
 
-  private func presentViewController(_ viewControllerToPresent: UIViewController) {
-    self.manager.viewController?.present(viewControllerToPresent, animated: true, completion: nil)
+  private func presentingViewController(parent: String?) -> UIViewController? {
+    if let parent, let address = UInt(parent), let pointer = UnsafeRawPointer(bitPattern: address) {
+      return Unmanaged<UIViewController>.fromOpaque(pointer).takeUnretainedValue()
+    }
+    return self.manager.viewController
+  }
+
+  private func presentViewController(_ viewControllerToPresent: UIViewController, parent: String?) {
+    self.presentingViewController(parent: parent)?
+      .present(viewControllerToPresent, animated: true, completion: nil)
   }
 
   @available(iOS 14, *)
@@ -221,7 +232,7 @@ class DialogPlugin: Plugin {
         }
 
         picker.modalPresentationStyle = .fullScreen
-        self.presentViewController(picker)
+        self.presentViewController(picker, parent: args.parent)
       }
     } else {
       let documentTypes = parsedTypes.isEmpty ? ["public.data"] : parsedTypes
@@ -234,7 +245,7 @@ class DialogPlugin: Plugin {
         picker.delegate = self.filePickerController
         picker.allowsMultipleSelection = args.multiple ?? false
         picker.modalPresentationStyle = .fullScreen
-        self.presentViewController(picker)
+        self.presentViewController(picker, parent: args.parent)
       }
     }
   }
@@ -262,10 +273,9 @@ class DialogPlugin: Plugin {
   }
 
   @objc public func showMessageDialog(_ invoke: Invoke) throws {
-    let manager = self.manager
     let args = try invoke.parseArgs(MessageDialogOptions.self)
 
-    DispatchQueue.main.async { [] in
+    DispatchQueue.main.async { [self] in
       let alert = UIAlertController(
         title: args.title, message: args.message, preferredStyle: UIAlertController.Style.alert)
 
@@ -301,7 +311,7 @@ class DialogPlugin: Plugin {
         )
       )
 
-      manager.viewController?.present(alert, animated: true, completion: nil)
+      self.presentViewController(alert, parent: args.parent)
     }
   }
 
